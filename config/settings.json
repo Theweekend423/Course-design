@@ -1,0 +1,14 @@
+{
+    "api_key": "sk-f9823a1e79b44810a61764eac206ee80",
+    "base_url": "https://api.deepseek.com",
+    "model_name": "deepseek-chat",
+    "timeout": 30,
+    "token_count": 1850,
+    "confidence": 0.5,
+    "enable_dead_fish": true,
+    "enable_pollution": false,
+    "enable_eutrophication": false,
+    "enable_water_quality": false,
+    "enable_water_trash": false,
+    "enable_splash": true
+}

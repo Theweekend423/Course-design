@@ -1,0 +1,29 @@
+NavigationWidget {
+    font-size: 15px;
+    font-weight: 500;
+}
+
+NavigationPushButton {
+    min-height: 44px;
+    max-height: 44px;
+
+    font-size: 15px;
+    font-weight: 500;
+
+    padding-left: 10px;
+}
+
+NavigationPushButton QLabel {
+    font-size: 15px;
+    font-weight: 500;
+}
+
+NavigationIconWidget {
+    qproperty-iconSize: 20px 20px;
+}
+
+CardWidget{
+    background-color: rgba(255,255,255,220);
+    border-radius: 18px;
+    border: 1px solid rgba(255,255,255,150);
+}
