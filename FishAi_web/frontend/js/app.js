@@ -1,5 +1,5 @@
 const ICON_MAP = {
-  fish: "ri-fish-line",
+  fish: "ri-error-warning-line",
   factory: "ri-building-2-line",
   leaf: "ri-plant-line",
   droplet: "ri-drop-line",

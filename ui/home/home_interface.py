@@ -1,8 +1,11 @@
 import platform
 import sys
+import subprocess
+import os
+import signal
 from datetime import datetime
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy, QPushButton, QTextEdit
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import (
     QColor,
@@ -141,6 +144,7 @@ class HomeInterface(QWidget):
         super().__init__(parent)
         self.setObjectName("home_interface")
         self.settingsManager = SettingsManager()
+        self.webProcess = None
         self.initUI()
 
         self.timer = QTimer()
@@ -253,28 +257,259 @@ class HomeInterface(QWidget):
         middleLayout.addWidget(self.trendChart, 2)
         mainLayout.addLayout(middleLayout)
 
-        # AI 综合评价区域
-        aiCard = CardWidget()
-        aiLayout = QVBoxLayout(aiCard)
-        aiTitle_layout = QHBoxLayout()
-        ai_icon = QLabel("🧠")
-        ai_icon.setFont(QFont("Segoe UI Emoji", 32))
-        aiTitle_layout.addWidget(ai_icon)
-        aiTitle = QLabel("DeepSeek AI 综合评价")
-        aiTitle.setStyleSheet("font-size: 24px; font-weight: bold;")
-        aiTitle_layout.addWidget(aiTitle)
-        aiTitle_layout.addStretch()
-        aiLayout.addLayout(aiTitle_layout)
-        aiLayout.addSpacing(10)
+        # =================================================
+        # 网页端备用路线控制卡片
+        # =================================================
+        webCard = CardWidget()
+        webLayout = QVBoxLayout(webCard)
+        webLayout.setSpacing(15)
 
-        self.aiReportLabel = QLabel()
-        self.aiReportLabel.setWordWrap(True)
-        self.aiReportLabel.setStyleSheet("font-size: 18px; line-height: 32px; color: #2c3e50;")
-        self.aiReportLabel.setText("等待首次检测...")
-        aiLayout.addWidget(self.aiReportLabel)
-        mainLayout.addWidget(aiCard)
+        # 标题行
+        webTitle_layout = QHBoxLayout()
+        web_icon = QLabel("🌐")
+        web_icon.setFont(QFont("Segoe UI Emoji", 32))
+        webTitle_layout.addWidget(web_icon)
+        webTitle = QLabel("网页端备用路线")
+        webTitle.setStyleSheet("font-size: 24px; font-weight: bold;")
+        webTitle_layout.addWidget(webTitle)
+        webTitle_layout.addStretch()
+        webLayout.addLayout(webTitle_layout)
+
+        # 状态与说明
+        self.webStatusLabel = QLabel("🔴 网页端服务未启动")
+        self.webStatusLabel.setStyleSheet("font-size: 18px; color: #D83B01; font-weight: bold;")
+        webLayout.addWidget(self.webStatusLabel)
+
+        self.webInfoLabel = QLabel(
+            "💡 轻量网页备用端，支持图片综合检测，无需安装额外软件即可通过浏览器访问。"
+        )
+        self.webInfoLabel.setWordWrap(True)
+        self.webInfoLabel.setStyleSheet("font-size: 16px; color: #555; line-height: 26px;")
+        webLayout.addWidget(self.webInfoLabel)
+
+        # 链接显示区域
+        self.webLinkText = QTextEdit()
+        self.webLinkText.setReadOnly(True)
+        self.webLinkText.setMaximumHeight(60)
+        self.webLinkText.setStyleSheet("""
+            QTextEdit {
+                font-size: 16px;
+                padding: 10px;
+                background-color: #f0f4ff;
+                border: 2px dashed #4facfe;
+                border-radius: 10px;
+                color: #2d1b69;
+            }
+        """)
+        self.webLinkText.setText("🔗 链接将在启动后显示于此处...")
+        self.webLinkText.setVisible(False)
+        webLayout.addWidget(self.webLinkText)
+
+        # 按钮布局
+        webBtnLayout = QHBoxLayout()
+        webBtnLayout.setSpacing(15)
+
+        self.startWebBtn = QPushButton("▶️ 启动备用网页界面")
+        self.startWebBtn.setMinimumHeight(50)
+        self.startWebBtn.setStyleSheet("""
+            QPushButton {
+                font-size: 18px;
+                font-weight: bold;
+                background-color: #28A745;
+                color: white;
+                border-radius: 10px;
+                padding: 10px 20px;
+            }
+            QPushButton:hover {
+                background-color: #218838;
+            }
+            QPushButton:disabled {
+                background-color: #6c757d;
+            }
+        """)
+        self.startWebBtn.clicked.connect(self.startWebServer)
+
+        self.stopWebBtn = QPushButton("⏹️ 关闭网页端")
+        self.stopWebBtn.setMinimumHeight(50)
+        self.stopWebBtn.setEnabled(False)
+        self.stopWebBtn.setStyleSheet("""
+            QPushButton {
+                font-size: 18px;
+                font-weight: bold;
+                background-color: #DC3545;
+                color: white;
+                border-radius: 10px;
+                padding: 10px 20px;
+            }
+            QPushButton:hover {
+                background-color: #C82333;
+            }
+            QPushButton:disabled {
+                background-color: #6c757d;
+            }
+        """)
+        self.stopWebBtn.clicked.connect(self.stopWebServer)
+
+        self.openBrowserBtn = QPushButton("⏏️ 在浏览器中打开")
+        self.openBrowserBtn.setMinimumHeight(50)
+        self.openBrowserBtn.setEnabled(False)
+        self.openBrowserBtn.setStyleSheet("""
+            QPushButton {
+                font-size: 18px;
+                font-weight: bold;
+                background-color: #0078D4;
+                color: white;
+                border-radius: 10px;
+                padding: 10px 20px;
+            }
+            QPushButton:hover {
+                background-color: #106EBE;
+            }
+            QPushButton:disabled {
+                background-color: #6c757d;
+            }
+        """)
+        self.openBrowserBtn.clicked.connect(self.openBrowser)
+
+        webBtnLayout.addWidget(self.startWebBtn)
+        webBtnLayout.addWidget(self.stopWebBtn)
+        webBtnLayout.addWidget(self.openBrowserBtn)
+        webLayout.addLayout(webBtnLayout)
+
+        mainLayout.addWidget(webCard)
 
         mainLayout.addStretch()
+
+    # =================================================
+    # 网页端服务控制方法
+    # =================================================
+    def startWebServer(self):
+        """启动 Web 后端服务"""
+        try:
+            possible_paths = []
+
+            # 当前文件所在目录: ui/home/
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            # 桌面端根目录: ui/ 的父目录
+            desktop_dir = os.path.dirname(current_dir)
+
+            # 方案1: FishAi_web 与 Fish_system 同级（常见布局）
+            parent_of_desktop = os.path.dirname(desktop_dir)
+            possible_paths.append(os.path.join(parent_of_desktop, "FishAi_web"))
+
+            # 方案2: FishAi_web 在 Fish_system 内部
+            possible_paths.append(os.path.join(desktop_dir, "FishAi_web"))
+
+            # 方案3: 从当前工作目录查找
+            possible_paths.append(os.path.join(os.getcwd(), "FishAi_web"))
+
+            # 方案4: 绝对路径（硬编码备用）
+            possible_paths.append(r"E:\YOLO11\Fish_system\FishAi_web")
+
+            web_dir = None
+            run_script = None
+            for p in possible_paths:
+                candidate = os.path.join(p, "run.py")
+                if os.path.exists(candidate):
+                    web_dir = p
+                    run_script = candidate
+                    break
+
+            if web_dir is None:
+                # 最后一次尝试：直接搜索 run.py
+                search_roots = [
+                    parent_of_desktop,
+                    desktop_dir,
+                    os.getcwd(),
+                    r"E:\YOLO11\Fish_system",
+                ]
+                for root in search_roots:
+                    for dirpath, dirnames, filenames in os.walk(root):
+                        if "run.py" in filenames:
+                            # 确认是 FishAi_web 的 run.py（检查同级是否有 backend/app.py）
+                            if os.path.exists(os.path.join(dirpath, "backend", "app.py")):
+                                web_dir = dirpath
+                                run_script = os.path.join(dirpath, "run.py")
+                                break
+                        # 限制搜索深度，避免太慢
+                        if dirpath.count(os.sep) > root.count(os.sep) + 2:
+                            del dirnames[:]
+                    if web_dir:
+                        break
+
+            if web_dir is None or not os.path.exists(run_script):
+                self.webStatusLabel.setText("❌ 未找到 run.py\n已尝试路径: " + "; ".join(possible_paths[:3]))
+                self.webStatusLabel.setStyleSheet("font-size: 18px; color: #DC3545; font-weight: bold;")
+                return
+
+            # 启动子进程运行 run.py
+            if sys.platform == "win32":
+                self.webProcess = subprocess.Popen(
+                    [sys.executable, run_script],
+                    cwd=web_dir,
+                    creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+                )
+            else:
+                self.webProcess = subprocess.Popen(
+                    [sys.executable, run_script],
+                    cwd=web_dir,
+                    preexec_fn=os.setsid
+                )
+
+            # 更新 UI 状态
+            self.webStatusLabel.setText("🟢 网页端服务运行中")
+            self.webStatusLabel.setStyleSheet("font-size: 18px; color: #28A745; font-weight: bold;")
+            self.webInfoLabel.setText("✅ 服务已启动！点击下方按钮在浏览器中打开网页端。")
+
+            self.webLinkText.setText("🔗 http://localhost:8081")
+            self.webLinkText.setVisible(True)
+
+            self.startWebBtn.setEnabled(False)
+            self.stopWebBtn.setEnabled(True)
+            self.openBrowserBtn.setEnabled(True)
+
+        except Exception as e:
+            self.webStatusLabel.setText(f"❌ 启动失败: {str(e)}")
+            self.webStatusLabel.setStyleSheet("font-size: 18px; color: #DC3545; font-weight: bold;")
+
+    def stopWebServer(self):
+        """停止 Web 后端服务"""
+        if self.webProcess is not None:
+            try:
+                if sys.platform == "win32":
+                    # Windows: 终止进程组
+                    self.webProcess.send_signal(signal.CTRL_BREAK_EVENT)
+                    self.webProcess.kill()
+                else:
+                    # Linux/Mac: 终止进程组
+                    os.killpg(os.getpgid(self.webProcess.pid), signal.SIGTERM)
+                    self.webProcess.kill()
+            except Exception:
+                pass
+            finally:
+                self.webProcess = None
+
+        # 更新 UI 状态
+        self.webStatusLabel.setText("🔴 网页端服务已停止")
+        self.webStatusLabel.setStyleSheet("font-size: 18px; color: #D83B01; font-weight: bold;")
+        self.webInfoLabel.setText("💡 轻量网页备用端，支持图片综合检测，无需安装额外软件即可通过浏览器访问。")
+
+        self.webLinkText.setVisible(False)
+        self.webLinkText.setText("🔗 链接将在启动后显示于此处...")
+
+        self.startWebBtn.setEnabled(True)
+        self.stopWebBtn.setEnabled(False)
+        self.openBrowserBtn.setEnabled(False)
+
+    def openBrowser(self):
+        """在默认浏览器中打开网页端"""
+        import webbrowser
+        webbrowser.open("http://localhost:8081")
+
+    def closeEvent(self, event):
+        """窗口关闭时确保停止 Web 服务"""
+        self.stopWebServer()
+        event.accept()
 
     # 辅助方法
     def getModelColor(self):
@@ -314,20 +549,3 @@ class HomeInterface(QWidget):
         self.aiLight.updateColor()
         self.gpuLight.updateColor()
         self.dataLight.updateColor()
-
-        if DataManager.latest_report:
-            report = DataManager.latest_report
-            if report.strip().startswith("{") and "score" in report:
-                try:
-                    import json
-                    data = json.loads(report)
-                    text = f"【评分】{data.get('score', '?')}分  |  【风险等级】{data.get('risk_level', '未知')}\n"
-                    text += f"【原因】{data.get('reason', '无')}\n"
-                    text += f"【建议】{data.get('suggestion', '无')}"
-                    self.aiReportLabel.setText(text)
-                except:
-                    self.aiReportLabel.setText(report[:400] + ("..." if len(report) > 400 else ""))
-            else:
-                self.aiReportLabel.setText(report[:400] + ("..." if len(report) > 400 else ""))
-        else:
-            self.aiReportLabel.setText("暂无 AI 分析结果，请前往「智能检测」上传图片进行分析。")
